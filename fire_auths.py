@@ -20,4 +20,6 @@ password='string'
 # print(user)
 
 usersignin=auth.sign_in_with_email_and_password(email,password)
-print(usersignin)
+# print(usersignin)
+info=auth.get_account_info(usersignin['idToken'])
+print(info['users'][0]['email'])

@@ -14,13 +14,13 @@ import pyrebase
 app = FastAPI()
 
 config = {
-    "apiKey": "AIzaSyAjiSpbW-qxxSTWWbk_AS10wvj-7O7PzvY",
-    "authDomain": "meshhawk-b897d.firebaseapp.com",
-    "projectId": "meshhawk-b897d",
-    "storageBucket": "meshhawk-b897d.appspot.com",
-    "messagingSenderId": "1097191319781",
-    "appId": "1:1097191319781:web:a4734e2e02eea9a73b4c0c",
-    "measurementId": "G-TQZTZHTR79",
+    "apiKey":"AIzaSyAkuhoVUDIMQwy6QEa-yzqUyFsBEUzPhL8",
+    "authDomain":"meshhawk-c168a.firebaseapp.com",
+    "projectId":"meshhawk-c168a",
+    "storageBucket": "meshhawk-c168a.appspot.com",
+    "messagingSenderId": "647266716782",
+    "appId": "1:647266716782:web:8671d1a85cda7aedcd2a7f",
+    "measurementId": "G-E5BY1Q33NL",
     "databaseURL": ""
 }
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
@@ -56,23 +56,10 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
 
 @app.get("/get_userid",tags=['Auth'])
 async def get_userid(token : str= Depends(oauth2_scheme)):
-    response = client.get_user(
-        AccessToken=token
-    )
-    username = response['Username']
-    print(username)
-    conn = await get_connection()
-    query = f"SELECT userid FROM users WHERE username='{username}'"
-    userid = None
-    
-    async with conn.cursor() as cursor:
-        await cursor.execute(query)
-        result = await cursor.fetchall()
-        if result:
-            userid = result[0][0]
-        await release_connection(conn)
-    
-    return {"userid": userid} 
+    info=auth.get_account_info(token)
+    #print(info['users'][0]['email'])
+    email=info['users'][0]['email']
+    return {"userid": email} 
 
 @app.post("/generate_graph")
 def generate_graph(pcapng_file: UploadFile = File(...)):

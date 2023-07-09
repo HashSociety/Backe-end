@@ -9,13 +9,13 @@ def check_mesh_network(pcapng_file):
     mac = []
     for packet in packets:
         if packet.haslayer(Dot11):
-            if packet.addr3 == 'ec:a2:a0:69:b1:f9' or packet.addr3 == 'ea:65:32:28:67:0a':
-                pass
-            else:
-                rrc_mac = packet.addr2  # receiver
-                src_mac = packet.addr3  # source
-                dst_mac = packet.addr1  # dest
-                mac.append([src_mac, rrc_mac, dst_mac])
+            # if packet.addr3 == 'ec:a2:a0:69:b1:f9' or packet.addr3 == 'ea:65:32:28:67:0a':
+            #     pass
+            # else:
+            rrc_mac = packet.addr2  # receiver
+            src_mac = packet.addr3  # source
+            dst_mac = packet.addr1  # dest
+            mac.append([src_mac, rrc_mac, dst_mac])
     return mac
 
 
