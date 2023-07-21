@@ -1,18 +1,29 @@
-import os
 import networkx as nx
 import matplotlib.pyplot as plt
-from fastapi import FastAPI, UploadFile, File ,Request , HTTPException, Depends
+from fastapi import FastAPI, UploadFile, File ,Request, HTTPException, Depends,status
+from fastapi.responses import JSONResponse
+from tempfile import NamedTemporaryFile
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
-from tempfile import NamedTemporaryFile
-from scapy.all import *
-from scapy.all import Dot11
+import pyshark
 from models import *  
 import pyrebase
-
+import asyncio
 
 app = FastAPI()
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["POST"],
+    allow_headers=["*"],
+)
+
+@app.get("/")
+async def index(request: Request):
+    
+    return {"message": "Hello"}
 config = {
     "apiKey":"AIzaSyAkuhoVUDIMQwy6QEa-yzqUyFsBEUzPhL8",
     "authDomain":"meshhawk-c168a.firebaseapp.com",
@@ -42,10 +53,10 @@ def authenticate_user(username: str, password: str):
         access_token = response['idToken']
         
         return {"access_token": access_token, "token_type": "bearer"}
-    except client.exceptions.NotAuthorizedException:
-        raise Exception("Invalid credentials")
-    except client.exceptions.UserNotFoundException:
-        raise Exception("User not found")
+    # except client.exceptions.NotAuthorizedException:
+    #     raise Exception("Invalid credentials")
+    # except client.exceptions.UserNotFoundException:
+    #     raise Exception("User not found")
     except Exception as e:
         raise Exception(str(e))
 
@@ -61,63 +72,37 @@ async def get_userid(token : str= Depends(oauth2_scheme)):
     email=info['users'][0]['email']
     return {"userid": email} 
 
-@app.post("/generate_graph")
-def generate_graph(pcapng_file: UploadFile = File(...)):
-    def check_mesh_network(pcapng_file):
-        packets = rdpcap(pcapng_file)
-        mac = []
-        for packet in packets:
-            if packet.haslayer(Dot11):
-                if packet.addr3 == 'ec:a2:a0:69:b1:f9' or packet.addr3 == 'ea:65:32:28:67:0a':
-                    pass
-                else:
-                    rrc_mac = packet.addr2  # receiver
-                    src_mac = packet.addr3  # source
-                    dst_mac = packet.addr1  # dest
-                    mac.append([src_mac, rrc_mac, dst_mac])
-        return mac
+def extract_addresses(pcapng_file):
+    capture = pyshark.FileCapture(pcapng_file)
+    ls = []
+    for packet in capture:
+        source_address = packet.wlan.sa
+        destination_address = packet.wlan.da
+        receiver_address = packet.wlan.ra
+        transmitter_address = packet.wlan.ta
+        ls.append([source_address, receiver_address, transmitter_address, destination_address])
+    capture.close()
+    return ls
 
-    def create_mac_graph(mac_addresses):
-        graph = nx.Graph()
-        for src_mac, rrc_mac, dst_mac in mac_addresses:
-            graph.add_edge(src_mac, rrc_mac, color='red')  # Assign color to the edge
-            graph.add_edge(rrc_mac, dst_mac, color='blue')  # Assign color to the edge
-        return graph
+async def async_extract_addresses(pcapng_file):
+    loop = asyncio.get_event_loop()
+    addresses = await loop.run_in_executor(None, extract_addresses, pcapng_file)
+    return addresses
 
-    # Save the uploaded file temporarily
+@app.post("/upload")
+async def upload_pcap(pcapng_file: UploadFile = UploadFile(...)):
     with NamedTemporaryFile(delete=False) as tmp:
         pcapng_file_path = tmp.name
         pcapng_file.seek(0)
         tmp.write(pcapng_file.file.read())
 
-    mac_addresses_list = check_mesh_network(pcapng_file_path)
-    graph = create_mac_graph(mac_addresses_list)
-
-    # Draw the graph with edge colors and prevent layer overlap
-    edge_colors = nx.get_edge_attributes(graph, 'color').values()
-    pos = nx.spring_layout(graph)
-    nx.draw(graph, pos, with_labels=True, edge_color=list(edge_colors))
-    
-    # Save the graph as an image
-    graph_image_path = "graph.png"
-    plt.savefig(graph_image_path)
-
-    # Remove the temporary pcapng file
-    os.remove(pcapng_file_path)
-
-    return {"message": "Graph generated successfully!", "graph_image_path": graph_image_path}
-
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    addresses = await async_extract_addresses(pcapng_file_path)
+    return {"addresses": addresses}
 
 
 
 
 
-@app.get("/")
-async def index(request: Request):
-    
-    return {"message": "Hello"}
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request, exc):

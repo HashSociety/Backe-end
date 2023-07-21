@@ -27,7 +27,7 @@ def create_mac_graph(mac_addresses):
     return graph
 
 
-pcapng_file_path = "capture3.pcapng"
+pcapng_file_path = "capturedemo19.pcapng"
 mac_addresses_list = check_mesh_network(pcapng_file_path)
 graph = create_mac_graph(mac_addresses_list)
 
