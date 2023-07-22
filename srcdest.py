@@ -20,7 +20,7 @@ def create_graph(edges):
     G = nx.DiGraph()  # Use DiGraph to represent directed edges (transmitter to receiver)
 
     for edge in edges:
-        node1, node2 = edge[2], edge[1]  # transmitter_address, receiver_address
+        node1, node2 = edge[0], edge[3]  # transmitter_address, receiver_address
         G.add_edge(node1, node2)
     return G
 
@@ -56,42 +56,43 @@ def find_mac_with_highest_degree(G):
     return mac_with_highest_degree
 
 # Usage
-pcapng_file = "api/capturedemo19.pcapng"
-# fetching add 
-add = extract_addresses(pcapng_file)
+# pcapng_file = "api/capturedemo19.pcapng"
+# # fetching add 
+# add = extract_addresses(pcapng_file)
 
-# create graph with above add 
-graph = create_graph(add)
+# # create graph with above add 
+# graph = create_graph(add)
 
-# create components out of that graph partitioning 
-components = make_components(graph)
+# # create components out of that graph partitioning 
+# components = make_components(graph)
 
-# info1
-disconnected_graphs = count_disconnected_graphs(graph)
+# # info1
+# disconnected_graphs = count_disconnected_graphs(graph)
 
-# Print the extracted addresses
-print("Extracted addresses:")
-print(add)
-print("\n")
+# # Print the extracted addresses
+# print("Extracted addresses:")
+# #print(add)
+# print("\n")
 
-# Print the components (disconnected graphs)
-print("Components (disconnected graphs):")
-print(components)
-print("\n")
+# # Print the components (disconnected graphs)
+# print(f"Components {components}")
+# print("\n")
 
-# Print indegree and outdegree information
-indegree_data, outdegree_data = indegree_outdegree_info(graph)
-print("Indegree information:")
-print(indegree_data)
-print("\nOutdegree information:")
-print(outdegree_data)
+# print(disconnected_graphs)
 
-# Print the number of disconnected graphs
-print("Number of disconnected graphs:", disconnected_graphs)
+# # Print indegree and outdegree information
+# indegree_data, outdegree_data = indegree_outdegree_info(graph)
+# print("Indegree information:")
+# print(indegree_data)
+# print("\nOutdegree information:")
+# print(outdegree_data)
 
-# Find the MAC address with the highest degree
-mac_with_highest_degree = find_mac_with_highest_degree(graph)
-print("MAC address with the highest degree:", mac_with_highest_degree)
+# # Print the number of disconnected graphs
+# print("Number of disconnected graphs:", disconnected_graphs)
 
-# Show the graph
-show_graph(graph)
+# # Find the MAC address with the highest degree
+# mac_with_highest_degree = find_mac_with_highest_degree(graph)
+# print("MAC address with the highest degree:", mac_with_highest_degree)
+
+# # Show the graph
+# show_graph(graph)

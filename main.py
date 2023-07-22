@@ -9,6 +9,7 @@ import pyshark
 from models import *  
 import pyrebase
 import asyncio
+from srcdest import *
 
 app = FastAPI()
 
@@ -16,7 +17,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["POST"],
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
@@ -97,7 +98,13 @@ async def upload_pcap(pcapng_file: UploadFile = UploadFile(...)):
         tmp.write(pcapng_file.file.read())
 
     addresses = await async_extract_addresses(pcapng_file_path)
-    return {"addresses": addresses}
+    graph=create_graph(addresses)
+
+    components=make_components(graph)
+
+
+
+    return {"addresses": addresses, "compenents":components}
 
 
 
