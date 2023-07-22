@@ -101,10 +101,13 @@ async def upload_pcap(pcapng_file: UploadFile = UploadFile(...)):
     graph=create_graph(addresses)
 
     components=make_components(graph)
+    no_of_disconnected_graphs=count_disconnected_graphs(graph)
+    access_point=find_mac_with_highest_degree(graph)
 
 
 
-    return {"addresses": addresses, "compenents":components}
+
+    return {"addresses": addresses, "compenents":components,"no_of_disconnected_graphs":no_of_disconnected_graphs,'access_point':access_point}
 
 
 
