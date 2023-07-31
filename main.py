@@ -92,7 +92,7 @@ async def async_extract_addresses(pcapng_file):
     addresses = await loop.run_in_executor(None, extract_addresses, pcapng_file)
     return addresses
 
-@app.post("/upload")
+@app.post("/upload/pcap")
 async def upload_pcap(pcapng_file: UploadFile = UploadFile(...)):
     with NamedTemporaryFile(delete=False) as tmp:
         pcapng_file_path = tmp.name
@@ -156,7 +156,7 @@ def load_second_section_of_csv(content):
 
     return df
 
-@app.post("/upload/")
+@app.post("/upload/csv")
 async def upload_and_analyze(file: UploadFile = File(...)):
     try:
         # Check if the uploaded file is a CSV
