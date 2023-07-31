@@ -10,7 +10,9 @@ from models import *
 import pyrebase
 import asyncio
 from srcdest import *
-
+import pandas as pd
+import io
+# from secondsec import *
 app = FastAPI()
 
 app.add_middleware(
@@ -109,9 +111,84 @@ async def upload_pcap(pcapng_file: UploadFile = UploadFile(...)):
 
     return {"addresses": addresses, "compenents":components,"no_of_disconnected_graphs":no_of_disconnected_graphs,'access_point':access_point}
 
+# @app.post("/upload/")
+# async def upload_and_analyze(file: UploadFile = File(...)):
+#     try:
+#         # Check if the uploaded file is a CSV
+#         if file.filename.endswith(".csv"):
+#             # Read the CSV file using pandas
+#             content = await file.read()
+#             data = io.StringIO(content.decode("utf-8"))
+#             df = pd.read_csv(data)
 
+#             # Perform analysis (for demonstration, we'll just return the first few rows)
+#             analysis_result = df.head().to_dict(orient="records")
 
+#             return JSONResponse(content=analysis_result)
 
+#         else:
+#             raise HTTPException(status_code=400, detail="Uploaded file must be a CSV")
+
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=str(e))
+
+def load_first_section_of_csv(content):
+    # Find the index of the blank row that separates the two sections of headers
+    blank_row_index = content.find(b'\n\n')
+
+    # Separate the content into the first section
+    first_section = content[:blank_row_index]
+
+    # Load the first section using pandas
+    df = pd.read_csv(io.BytesIO(first_section))
+
+    return df
+
+def load_second_section_of_csv(content):
+    # Find the index of the blank row that separates the two sections of headers
+    blank_row_index = content.find(b'\n\n')
+
+    # Separate the content into the second section
+    second_section = content[blank_row_index + 2:]  # +2 to skip the blank row
+
+    # Load the second section using pandas
+    df = pd.read_csv(io.BytesIO(second_section))
+
+    return df
+
+@app.post("/upload/")
+async def upload_and_analyze(file: UploadFile = File(...)):
+    try:
+        # Check if the uploaded file is a CSV
+        if file.filename.endswith(".csv"):
+            # Read the CSV file content
+            content = await file.read()
+
+            # Load both sections using the custom functions
+            first_section_df = load_first_section_of_csv(content)
+            second_section_df = load_second_section_of_csv(content)
+
+            # Perform analysis (for demonstration, we'll just return the first few rows)
+            first_section_analysis = first_section_df.to_dict(orient="records")
+            second_section_analysis = second_section_df.to_dict(orient="records")
+
+            # Convert floating-point values to strings to ensure JSON compliance
+            first_section_analysis = [{k: str(v) for k, v in row.items()} for row in first_section_analysis]
+            second_section_analysis = [{k: str(v) for k, v in row.items()} for row in second_section_analysis]
+
+            # Combine the analysis results into a single dictionary
+            analysis_result = {
+                "first_section": first_section_analysis,
+                "second_section": second_section_analysis
+            }
+
+            return JSONResponse(content=analysis_result)
+
+        else:
+            raise HTTPException(status_code=400, detail="Uploaded file must be a CSV")
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.exception_handler(HTTPException)
