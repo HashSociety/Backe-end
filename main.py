@@ -203,30 +203,60 @@ async def run_script(duration: int = Query(..., gt=0)):
         return stdout, stderr, return_code  # Return bytes instead of decoded strings
 
     # Execute the script and return the output
-    stdout, stderr, return_code = execute_script()
-    print("Script")
+    try:
+        stdout, stderr, return_code = execute_script()
+        print("Script execution completed.")
 
-    if return_code == 0:
-        # Assuming your CSV and PCAP files are generated in the 'output' folder
-        csv_file = os.path.join("output", "capture.pcapng-01.csv")
-        pcap_file = os.path.join("output", "capture.pcapng")
-        print(1)
+        # Decode bytes to UTF-8 before returning, if needed
+        stdout_str = stdout.decode('utf-8')
+        stderr_str = stderr.decode('utf-8')
+
+        return {
+            "status": "success",
+            "stdout": stdout_str,
+            "stderr": stderr_str,
+        }
+
+    except Exception as e:
+        return {"status": "failed", "error": str(e)}
+    
+
+@app.get("/get_file_csv")
+async def get_csv_file():
+    # Validate the duration parameter
+    # Assuming your CSV and PCAP files are generated in the 'output' folder
+    csv_file = os.path.join("output", "capture.pcapng-01.csv")
+  
+    print(1)
 
         # Check if the files exist
-        if os.path.isfile(csv_file) and os.path.isfile(pcap_file):
+    if os.path.isfile(csv_file) :
             # Return the CSV and PCAP files as downloadable responses
             print(2)
-            return {
-                "status": "success",
-                "stdout": stdout,  # Returning bytes
-                "stderr": stderr,  # Returning bytes
-                "csv_file": FileResponse(csv_file, media_type="text/csv", filename="capture.csv"),
-                "pcap_file": FileResponse(pcap_file, media_type="application/vnd.tcpdump.pcap", filename="capture.pcap"),
-            }
-        else:
-            return {"status": "success", "stdout": stdout, "stderr": stderr, "error": "Files not found."}
+            return FileResponse(csv_file, media_type="text/csv", filename="capture.csv")
+                
+            
     else:
-        return {"status": "failed", "stdout": stdout, "stderr": stderr, "return_code": return_code}
+        return {"status": "success",  "error": "Files not found."}
+    
+@app.get("/get_file_pcap")
+async def get_pcap_file():
+    # Validate the duration parameter
+    # Assuming your CSV and PCAP files are generated in the 'output' folder
+    
+    pcap_file = os.path.join("output", "capture.pcapng")
+    print(1)
+
+        # Check if the files exist
+    if os.path.isfile(pcap_file):
+            # Return the CSV and PCAP files as downloadable responses
+            print(2)
+            return FileResponse(pcap_file, media_type="application/vnd.tcpdump.pcap", filename="capture.pcapng")
+                
+            
+    else:
+        return {"status": "success",  "error": "Files not found."}
+    
 
 
 @app.exception_handler(HTTPException)
