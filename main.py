@@ -12,6 +12,11 @@ import asyncio
 from srcdest import *
 import pandas as pd
 import io
+from fastapi import FastAPI, Query
+from fastapi.responses import JSONResponse
+from subprocess import Popen, PIPE
+import os
+
 # from secondsec import *
 app = FastAPI()
 
@@ -111,27 +116,6 @@ async def upload_pcap(pcapng_file: UploadFile = UploadFile(...)):
 
     return {"addresses": addresses, "compenents":components,"no_of_disconnected_graphs":no_of_disconnected_graphs,'access_point':access_point}
 
-# @app.post("/upload/")
-# async def upload_and_analyze(file: UploadFile = File(...)):
-#     try:
-#         # Check if the uploaded file is a CSV
-#         if file.filename.endswith(".csv"):
-#             # Read the CSV file using pandas
-#             content = await file.read()
-#             data = io.StringIO(content.decode("utf-8"))
-#             df = pd.read_csv(data)
-
-#             # Perform analysis (for demonstration, we'll just return the first few rows)
-#             analysis_result = df.head().to_dict(orient="records")
-
-#             return JSONResponse(content=analysis_result)
-
-#         else:
-#             raise HTTPException(status_code=400, detail="Uploaded file must be a CSV")
-
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
-
 def load_first_section_of_csv(content):
     # Find the index of the blank row that separates the two sections of headers
     blank_row_index = content.find(b'\n\n')
@@ -140,7 +124,7 @@ def load_first_section_of_csv(content):
     first_section = content[:blank_row_index]
 
     # Load the first section using pandas
-    df = pd.read_csv(io.BytesIO(first_section))
+    df = pd.read_csv(io.BytesIO(first_section), skipinitialspace=True)  # Use skipinitialspace to remove whitespace from keys
 
     return df
 
@@ -152,7 +136,7 @@ def load_second_section_of_csv(content):
     second_section = content[blank_row_index + 2:]  # +2 to skip the blank row
 
     # Load the second section using pandas
-    df = pd.read_csv(io.BytesIO(second_section))
+    df = pd.read_csv(io.BytesIO(second_section), skipinitialspace=True)  # Use skipinitialspace to remove whitespace from keys
 
     return df
 
@@ -173,8 +157,8 @@ async def upload_and_analyze(file: UploadFile = File(...)):
             second_section_analysis = second_section_df.to_dict(orient="records")
 
             # Convert floating-point values to strings to ensure JSON compliance
-            first_section_analysis = [{k: str(v) for k, v in row.items()} for row in first_section_analysis]
-            second_section_analysis = [{k: str(v) for k, v in row.items()} for row in second_section_analysis]
+            first_section_analysis = [{str(k): str(v).strip() for k, v in row.items()} for row in first_section_analysis]
+            second_section_analysis = [{str(k): str(v).strip() for k, v in row.items()} for row in second_section_analysis]
 
             # Combine the analysis results into a single dictionary
             analysis_result = {
@@ -189,6 +173,60 @@ async def upload_and_analyze(file: UploadFile = File(...)):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+
+
+
+
+
+
+from fastapi import FastAPI, Query
+from fastapi.responses import JSONResponse, FileResponse
+from subprocess import Popen, PIPE
+import os
+
+
+
+@app.post("/run_script/")
+async def run_script(duration: int = Query(..., gt=0)):
+    # Validate the duration parameter
+    if duration <= 0:
+        return JSONResponse(content={"error": "Duration must be greater than 0."}, status_code=400)
+
+    # Function to execute the script
+    def execute_script():
+        script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "finalscan.sh")
+        process = Popen(["bash", script_path, str(duration)], stdout=PIPE, stderr=PIPE)
+        stdout, stderr = process.communicate()
+        return_code = process.returncode
+        return stdout, stderr, return_code  # Return bytes instead of decoded strings
+
+    # Execute the script and return the output
+    stdout, stderr, return_code = execute_script()
+    print("Script")
+
+    if return_code == 0:
+        # Assuming your CSV and PCAP files are generated in the 'output' folder
+        csv_file = os.path.join("output", "capture.pcapng-01.csv")
+        pcap_file = os.path.join("output", "capture.pcapng")
+        print(1)
+
+        # Check if the files exist
+        if os.path.isfile(csv_file) and os.path.isfile(pcap_file):
+            # Return the CSV and PCAP files as downloadable responses
+            print(2)
+            return {
+                "status": "success",
+                "stdout": stdout,  # Returning bytes
+                "stderr": stderr,  # Returning bytes
+                "csv_file": FileResponse(csv_file, media_type="text/csv", filename="capture.csv"),
+                "pcap_file": FileResponse(pcap_file, media_type="application/vnd.tcpdump.pcap", filename="capture.pcap"),
+            }
+        else:
+            return {"status": "success", "stdout": stdout, "stderr": stderr, "error": "Files not found."}
+    else:
+        return {"status": "failed", "stdout": stdout, "stderr": stderr, "return_code": return_code}
 
 
 @app.exception_handler(HTTPException)
