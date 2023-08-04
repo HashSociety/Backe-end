@@ -187,7 +187,6 @@ from subprocess import Popen, PIPE
 import os
 
 
-
 @app.post("/run_script/")
 async def run_script(duration: int = Query(..., gt=0)):
     # Validate the duration parameter
@@ -200,25 +199,23 @@ async def run_script(duration: int = Query(..., gt=0)):
         process = Popen(["bash", script_path, str(duration)], stdout=PIPE, stderr=PIPE)
         stdout, stderr = process.communicate()
         return_code = process.returncode
-        return stdout, stderr, return_code  # Return bytes instead of decoded strings
+        return stdout.decode("utf-8"), stderr.decode("utf-8"), return_code
 
     # Execute the script and return the output
-    try:
-        stdout, stderr, return_code = execute_script()
-        print("Script execution completed.")
+    stdout, stderr, return_code = execute_script()
 
-        # Decode bytes to UTF-8 before returning, if needed
-        stdout_str = stdout.decode('utf-8')
-        stderr_str = stderr.decode('utf-8')
+    if return_code == 0:
+        return {"status": "success", "stdout": stdout, "stderr": stderr}
+    else:
+        return {"status": "failed", "stdout": stdout, "stderr": stderr, "return_code": return_code}
+# This modification uses asyncio.create_subprocess_exec() to create an asynchronous subprocess. The await process.communicate() function is used to read the output from the subprocess asynchronously. This way, the API won't hang while waiting for the subprocess to complete.
 
-        return {
-            "status": "success",
-            "stdout": stdout_str,
-            "stderr": stderr_str,
-        }
 
-    except Exception as e:
-        return {"status": "failed", "error": str(e)}
+
+
+
+
+
     
 
 @app.get("/get_file_csv")
