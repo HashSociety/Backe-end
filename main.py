@@ -16,7 +16,6 @@ from fastapi import FastAPI, Query
 from fastapi.responses import JSONResponse
 from subprocess import Popen, PIPE
 import os
-
 # from secondsec import *
 app = FastAPI()
 
@@ -181,10 +180,6 @@ async def upload_and_analyze(file: UploadFile = File(...)):
 
 
 
-from fastapi import FastAPI, Query
-from fastapi.responses import JSONResponse, FileResponse
-from subprocess import Popen, PIPE
-import os
 
 
 @app.post("/run_script/")
@@ -197,17 +192,16 @@ async def run_script(duration: int = Query(..., gt=0)):
     def execute_script():
         script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "finalscan.sh")
         process = Popen(["bash", script_path, str(duration)], stdout=PIPE, stderr=PIPE)
-        stdout, stderr = process.communicate()
-        return_code = process.returncode
-        return stdout.decode("utf-8"), stderr.decode("utf-8"), return_code
+        return_code = process.wait()  # Wait for the process to complete
+        return return_code
 
-    # Execute the script and return the output
-    stdout, stderr, return_code = execute_script()
+    # Execute the script and return a minimal response
+    return_code = execute_script()
 
     if return_code == 0:
-        return {"status": "success", "stdout": stdout, "stderr": stderr}
+        return {"status": "success"}
     else:
-        return {"status": "failed", "stdout": stdout, "stderr": stderr, "return_code": return_code}
+        return {"status": "failed", "return_code": return_code}
 # This modification uses asyncio.create_subprocess_exec() to create an asynchronous subprocess. The await process.communicate() function is used to read the output from the subprocess asynchronously. This way, the API won't hang while waiting for the subprocess to complete.
 
 
