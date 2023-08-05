@@ -1,7 +1,7 @@
 import networkx as nx
 import matplotlib.pyplot as plt
 from fastapi import FastAPI, UploadFile, File ,Request, HTTPException, Depends,status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse , FileResponse
 from tempfile import NamedTemporaryFile
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,6 +16,8 @@ from fastapi import FastAPI, Query
 from fastapi.responses import JSONResponse
 from subprocess import Popen, PIPE
 import os
+import subprocess
+from fastapi import FastAPI, Query, BackgroundTasks
 # from secondsec import *
 app = FastAPI()
 
@@ -81,13 +83,27 @@ async def get_userid(token : str= Depends(oauth2_scheme)):
 
 def extract_addresses(pcapng_file):
     capture = pyshark.FileCapture(pcapng_file)
-    ls = []
+    ls = list()
+    idx = 0
     for packet in capture:
-        source_address = packet.wlan.sa
-        destination_address = packet.wlan.da
-        receiver_address = packet.wlan.ra
-        transmitter_address = packet.wlan.ta
-        ls.append([source_address, receiver_address, transmitter_address, destination_address])
+        idx+=1
+        # print(idx,packet)
+        if 'wlan' in packet:
+            wlan_layer = packet.wlan
+            # Extract WLAN details
+            wlan_type = wlan_layer.fc_type
+            # wlan_subtype = wlan_layer.fc_subtype
+            if 'wlan_aggregate' in packet :
+                continue
+            if wlan_type == "2"  :        
+                # print(idx)
+                source_address = packet.wlan.sa
+                destination_address = packet.wlan.da
+                receiver_address = packet.wlan.ra
+                transmitter_address = packet.wlan.ta
+                bss_id = wlan_layer.bssid
+                bssids.append(bss_id)
+                ls.append([source_address, receiver_address, transmitter_address, destination_address])
     capture.close()
     return ls
 
@@ -106,14 +122,14 @@ async def upload_pcap(pcapng_file: UploadFile = UploadFile(...)):
     addresses = await async_extract_addresses(pcapng_file_path)
     graph=create_graph(addresses)
 
-    components=make_components(graph)
+    components=make_components(graph,addresses)
     no_of_disconnected_graphs=count_disconnected_graphs(graph)
-    access_point=find_mac_with_highest_degree(graph)
+    # access_point=find_mac_with_highest_degree(graph)
 
 
 
 
-    return {"addresses": addresses, "compenents":components,"no_of_disconnected_graphs":no_of_disconnected_graphs,'access_point':access_point}
+    return {"addresses": addresses, "compenents":components,"no_of_disconnected_graphs":no_of_disconnected_graphs}
 
 def load_first_section_of_csv(content):
     # Find the index of the blank row that separates the two sections of headers
@@ -182,8 +198,8 @@ async def upload_and_analyze(file: UploadFile = File(...)):
 
 
 
-@app.post("/run_script/")
-async def run_script(duration: int = Query(..., gt=0)):
+# @app.post("/run_script/")
+# async def run_script(duration: int = Query(..., gt=0)):
     # Validate the duration parameter
     if duration <= 0:
         return JSONResponse(content={"error": "Duration must be greater than 0."}, status_code=400)
@@ -204,7 +220,20 @@ async def run_script(duration: int = Query(..., gt=0)):
         return {"status": "failed", "return_code": return_code}
 # This modification uses asyncio.create_subprocess_exec() to create an asynchronous subprocess. The await process.communicate() function is used to read the output from the subprocess asynchronously. This way, the API won't hang while waiting for the subprocess to complete.
 
+def execute_script(duration: int):
+    script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "finalscan.sh")
+    os.system(f"x-terminal-emulator -e 'bash {script_path} {duration}'")
 
+@app.post("/run_script/")
+async def run_script(background_tasks: BackgroundTasks,duration: int = Query(..., gt=0), ):
+    # Validate the duration parameter
+    if duration <= 0:
+        return JSONResponse(content={"error": "Duration must be greater than 0."}, status_code=400)
+
+    # Execute the script in the background
+    background_tasks.add_task(execute_script, duration)
+
+    return JSONResponse(content={"status": "success"}, status_code=200)
 
 
 
@@ -216,7 +245,7 @@ async def run_script(duration: int = Query(..., gt=0)):
 async def get_csv_file():
     # Validate the duration parameter
     # Assuming your CSV and PCAP files are generated in the 'output' folder
-    csv_file = os.path.join("output", "capture.pcapng-01.csv")
+    csv_file = os.path.join("first/output", "capture-01.csv")
   
     print(1)
 
