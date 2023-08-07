@@ -220,20 +220,26 @@ async def upload_and_analyze(file: UploadFile = File(...)):
         return {"status": "failed", "return_code": return_code}
 # This modification uses asyncio.create_subprocess_exec() to create an asynchronous subprocess. The await process.communicate() function is used to read the output from the subprocess asynchronously. This way, the API won't hang while waiting for the subprocess to complete.
 
+
+
 def execute_script(duration: int):
-    script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "finalscan.sh")
-    os.system(f"x-terminal-emulator -e 'bash {script_path} {duration}'")
+    script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fullfinal/first.sh")
+    try:
+        subprocess.run(["x-terminal-emulator", "-e", f"bash {script_path} {duration}"], check=True)
+    except subprocess.CalledProcessError:
+        raise HTTPException(status_code=500, detail="Error executing the script")
 
 @app.post("/run_script/")
-async def run_script(background_tasks: BackgroundTasks,duration: int = Query(..., gt=0), ):
+async def run_script(background_tasks: BackgroundTasks, duration: int):
     # Validate the duration parameter
     if duration <= 0:
-        return JSONResponse(content={"error": "Duration must be greater than 0."}, status_code=400)
+        raise HTTPException(status_code=400, detail="Duration must be greater than 0.")
 
     # Execute the script in the background
     background_tasks.add_task(execute_script, duration)
 
-    return JSONResponse(content={"status": "success"}, status_code=200)
+    return {"status": "Script execution initiated."}
+
 
 
 
@@ -276,7 +282,23 @@ async def get_pcap_file():
             
     else:
         return {"status": "success",  "error": "Files not found."}
-    
+
+def execute_attack(bssid:int,duration: int):
+    script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fullfinal/second.sh")
+    try:
+        subprocess.run(["x-terminal-emulator", "-e", f"bash {script_path} {duration} {bssid}"], check=True)
+    except subprocess.CalledProcessError:
+        raise HTTPException(status_code=500, detail="Error executing the script")
+
+@app.post("/attack")
+async def get_attack(background_tasks: BackgroundTasks,bssid:str,channel:int):
+    if bssid is not None and channel is not None:
+        raise HTTPException(status_code=400, detail="Value can't be None")
+
+    # Execute the script in the background
+    background_tasks.add_task(execute_attack, bssid , channel )
+
+    return {"status": "Script execution initiated."}
 
 
 @app.exception_handler(HTTPException)

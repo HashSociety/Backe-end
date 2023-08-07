@@ -29,7 +29,7 @@ capture_packets() {
     sudo -u sanskar tshark -i "$INTERFACE" -a duration:"$DURATION" -w "$CAPTURE_FILE"
 }
 
-INTERFACE=wlo1mon
+INTERFACE=wlo1
 create_output_directory
 sudo rm -rf output/*.csv
 capture_packets_csv &
