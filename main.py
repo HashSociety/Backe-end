@@ -76,10 +76,13 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
 
 @app.get("/get_userid",tags=['Auth'])
 async def get_userid(token : str= Depends(oauth2_scheme)):
-    info=auth.get_account_info(token)
-    #print(info['users'][0]['email'])
-    email=info['users'][0]['email']
-    return {"userid": email} 
+    try:
+        info=auth.get_account_info(token)
+        #print(info['users'][0]['email'])
+        email=info['users'][0]['email']
+        return {"userid": email} 
+    except Exception as e:
+        raise HTTPException(status_code=400,detail=str(e))
 
 def extract_addresses(pcapng_file):
     capture = pyshark.FileCapture(pcapng_file)
