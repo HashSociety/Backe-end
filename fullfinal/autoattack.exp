@@ -1,0 +1,28 @@
+#!/usr/bin/expect -f
+
+# Check if all arguments are provided
+if {$argc != 2} {
+    puts "Usage: $argv0 <bssid> <channel>"
+    exit 1
+}
+
+set bssid [lindex $argv 0]
+set channel [lindex $argv 1]
+set password "1234"
+
+# Replace the path with the correct path to autoattack.sh
+set autoattack_script "./autoattack.sh"
+
+spawn sudo $autoattack_script $bssid $channel
+
+expect {
+    "password for akshat:" {
+        send "$password\r"
+    }
+    timeout {
+        puts "Timed out while waiting for password prompt."
+        exit 1
+    }
+}
+
+interact

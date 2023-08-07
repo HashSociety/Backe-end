@@ -1,6 +1,0 @@
-#!/usr/bin/expect -f
-set password "2105"
-spawn sudo ./first.sh 7
-expect "password for sanskar:"
-send "$password\r"
-interact

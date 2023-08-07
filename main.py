@@ -90,20 +90,17 @@ def extract_addresses(pcapng_file):
     idx = 0
     for packet in capture:
         idx+=1
-        # print(idx,packet)
         if 'wlan' in packet:
             wlan_layer = packet.wlan
-            # Extract WLAN details
-            wlan_type = wlan_layer.fc_type
-            # wlan_subtype = wlan_layer.fc_subtype
-            if 'wlan_aggregate' in packet :
-                continue
-            if wlan_type == "2"  :        
-                # print(idx)
+            if hasattr(wlan_layer, 'sa') and hasattr(wlan_layer, 'da') and hasattr(wlan_layer, 'ta') and hasattr(wlan_layer, 'ra'):       
                 source_address = packet.wlan.sa
                 destination_address = packet.wlan.da
                 receiver_address = packet.wlan.ra
                 transmitter_address = packet.wlan.ta
+                if source_address == "ff:ff:ff:ff:ff:ff" or destination_address == "ff:ff:ff:ff:ff:ff" or \
+                       receiver_address == "ff:ff:ff:ff:ff:ff" or transmitter_address == "ff:ff:ff:ff:ff:ff":
+                        print(f"Skipping packet at index {idx} due to ff:ff:ff:ff:ff:ff MAC address.")
+                        continue
                 bss_id = wlan_layer.bssid
                 bssids.append(bss_id)
                 ls.append([source_address, receiver_address, transmitter_address, destination_address])
@@ -128,10 +125,6 @@ async def upload_pcap(pcapng_file: UploadFile = UploadFile(...)):
     components=make_components(graph,addresses)
     no_of_disconnected_graphs=count_disconnected_graphs(graph)
     # access_point=find_mac_with_highest_degree(graph)
-
-
-
-
     return {"addresses": addresses, "compenents":components,"no_of_disconnected_graphs":no_of_disconnected_graphs}
 
 def load_first_section_of_csv(content):
@@ -228,7 +221,7 @@ async def upload_and_analyze(file: UploadFile = File(...)):
 def execute_script(duration: int):
     script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fullfinal/first.sh")
     try:
-        subprocess.run(["x-terminal-emulator", "-e", f"bash {script_path} {duration}"], check=True)
+        subprocess.Popen(["gnome-terminal", "--", "bash", "-c", f"{script_path} {duration}; bash"])
     except subprocess.CalledProcessError:
         raise HTTPException(status_code=500, detail="Error executing the script")
 
@@ -243,18 +236,11 @@ async def run_script(background_tasks: BackgroundTasks, duration: int):
 
     return {"status": "Script execution initiated."}
 
-
-
-
-
-
-    
-
 @app.get("/get_file_csv")
 async def get_csv_file():
     # Validate the duration parameter
     # Assuming your CSV and PCAP files are generated in the 'output' folder
-    csv_file = os.path.join("first/output", "capture-01.csv")
+    csv_file = os.path.join("fullfinal/output", "capture.csv")
   
     print(1)
 
@@ -273,7 +259,7 @@ async def get_pcap_file():
     # Validate the duration parameter
     # Assuming your CSV and PCAP files are generated in the 'output' folder
     
-    pcap_file = os.path.join("output", "capture.pcapng")
+    pcap_file = os.path.join("fullfinal/output", "capture.pcapng")
     print(1)
 
         # Check if the files exist
@@ -289,7 +275,7 @@ async def get_pcap_file():
 def execute_attack(bssid:int,duration: int):
     script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fullfinal/second.sh")
     try:
-        subprocess.run(["x-terminal-emulator", "-e", f"bash {script_path} {duration} {bssid}"], check=True)
+        subprocess.Popen(["gnome-terminal", "--", "bash", "-c", f"{script_path} {duration}; bash"])
     except subprocess.CalledProcessError:
         raise HTTPException(status_code=500, detail="Error executing the script")
 
