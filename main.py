@@ -221,7 +221,7 @@ async def upload_and_analyze(file: UploadFile = File(...)):
 def execute_script(duration: int):
     script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fullfinal/first.sh")
     try:
-        subprocess.Popen(["gnome-terminal", "--", "bash", "-c", f"{script_path} {duration}; bash"])
+        subprocess.Popen(["gnome-terminal", "--", "bash", "-c", f"{script_path} {duration}"])
     except subprocess.CalledProcessError:
         raise HTTPException(status_code=500, detail="Error executing the script")
 
@@ -272,18 +272,19 @@ async def get_pcap_file():
     else:
         return {"status": "success",  "error": "Files not found."}
 
-def execute_attack(bssid:int,duration: int):
+def execute_attack(bssid:str,channel: int):
     script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fullfinal/second.sh")
+    print(script_path)
+    print(type(script_path))
     try:
-        subprocess.Popen(["gnome-terminal", "--", "bash", "-c", f"{script_path} {duration}; bash"])
+        subprocess.Popen(["gnome-terminal", "--", "bash", "-c", f"cd fullfinal/ && {script_path} {bssid} {channel}"])
     except subprocess.CalledProcessError:
         raise HTTPException(status_code=500, detail="Error executing the script")
 
 @app.post("/attack")
 async def get_attack(background_tasks: BackgroundTasks,bssid:str,channel:int):
-    if bssid is not None and channel is not None:
+    if bssid == None and channel== None:
         raise HTTPException(status_code=400, detail="Value can't be None")
-
     # Execute the script in the background
     background_tasks.add_task(execute_attack, bssid , channel )
 
