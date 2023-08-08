@@ -55,6 +55,9 @@ def signup(request: SignupRequest):
     except Exception as e:
         raise HTTPException(status_code=400, detail="Signup failed")
 
+def is_multicast_mac(mac_address):
+    # Check if the MAC address is in the multicast range (01:00:5e:XX:XX or 33:33:XX:XX)
+    return mac_address.startswith("01:00:5e") or mac_address.startswith("33:33:")
 def authenticate_user(username: str, password: str):
     try:
         response=auth.sign_in_with_email_and_password(username,password)
@@ -87,26 +90,48 @@ async def get_userid(token : str= Depends(oauth2_scheme)):
 def extract_addresses(pcapng_file):
     capture = pyshark.FileCapture(pcapng_file)
     ls = list()
+    ls_qos=list()
+    qos_set = set()
     idx = 0
     for packet in capture:
         idx+=1
         if 'wlan' in packet:
             wlan_layer = packet.wlan
-            if hasattr(wlan_layer, 'sa') and hasattr(wlan_layer, 'da') and hasattr(wlan_layer, 'ta') and hasattr(wlan_layer, 'ra'):       
+            
+            wlan_type = wlan_layer.fc_type
+            if hasattr(wlan_layer, 'sa') and hasattr(wlan_layer, 'da') and hasattr(wlan_layer, 'ta') and hasattr(wlan_layer, 'ra') :       
                 source_address = packet.wlan.sa
                 destination_address = packet.wlan.da
                 receiver_address = packet.wlan.ra
                 transmitter_address = packet.wlan.ta
                 if source_address == "ff:ff:ff:ff:ff:ff" or destination_address == "ff:ff:ff:ff:ff:ff" or \
-                       receiver_address == "ff:ff:ff:ff:ff:ff" or transmitter_address == "ff:ff:ff:ff:ff:ff":
-                        print(f"Skipping packet at index {idx} due to ff:ff:ff:ff:ff:ff MAC address.")
-                        continue
+                                    receiver_address == "ff:ff:ff:ff:ff:ff" or transmitter_address == "ff:ff:ff:ff:ff:ff" or \
+                                    is_multicast_mac(source_address) or is_multicast_mac(destination_address) or \
+                                    is_multicast_mac(receiver_address) or is_multicast_mac(transmitter_address):
+                                        continue
+                if wlan_type == "2":
+                    source_address_qos= packet.wlan.sa
+                    destination_address_qos = packet.wlan.da
+                    # receiver_address_qos = packet.wlan.ra
+                    # transmitter_address_qos = packet.wlan.ta
+                    ls_qos.append([source_address_qos,destination_address_qos])
+                     
                 bss_id = wlan_layer.bssid
                 bssids.append(bss_id)
-                ls.append([source_address, receiver_address, transmitter_address, destination_address])
-    capture.close()
-    return ls
+                # ls.append([source_address, receiver_address, transmitter_address, destination_address])
+                unique_list_of_lists = []
+                seen_sublists = set()
 
+                for sublist in ls_qos:
+                    # Convert the sublist to a tuple to make it hashable
+                    sublist_tuple = tuple(sublist)
+                    
+                    if sublist_tuple not in seen_sublists:
+                        seen_sublists.add(sublist_tuple)
+                        unique_list_of_lists.append(sublist)
+                
+    capture.close()
+    return (unique_list_of_lists)
 async def async_extract_addresses(pcapng_file):
     loop = asyncio.get_event_loop()
     addresses = await loop.run_in_executor(None, extract_addresses, pcapng_file)
@@ -259,7 +284,7 @@ async def get_pcap_file():
     # Validate the duration parameter
     # Assuming your CSV and PCAP files are generated in the 'output' folder
     
-    pcap_file = os.path.join("fullfinal/output", "capture.pcapng")
+    pcap_file = os.path.join("fullfinal/output", "capture")
     print(1)
 
         # Check if the files exist

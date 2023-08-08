@@ -3,38 +3,59 @@ import networkx as nx
 import matplotlib.pyplot as plt
 
 # Function to extract source and destination addresses from the pcapng file
+def is_multicast_mac(mac_address):
+    # Check if the MAC address is in the multicast range (01:00:5e:XX:XX or 33:33:XX:XX)
+    return mac_address.startswith("01:00:5e") or mac_address.startswith("33:33:") or mac_address.startswith("00:")
 def extract_addresses(pcapng_file):
     capture = pyshark.FileCapture(pcapng_file)
     ls = list()
+    ls_qos=list()
+    qos_set = set()
     idx = 0
     for packet in capture:
         idx+=1
-        # print(idx,packet)
         if 'wlan' in packet:
             wlan_layer = packet.wlan
-            # Extract WLAN details
+            
             wlan_type = wlan_layer.fc_type
-            wlan_subtype = wlan_layer.fc_subtype
-            if 'wlan_aggregate' in packet :
-                continue
-            if wlan_type == "2" and wlan_subtype == "12" :        
-                # print(idx)
+            if hasattr(wlan_layer, 'sa') and hasattr(wlan_layer, 'da') and hasattr(wlan_layer, 'ta') and hasattr(wlan_layer, 'ra') :       
                 source_address = packet.wlan.sa
                 destination_address = packet.wlan.da
                 receiver_address = packet.wlan.ra
                 transmitter_address = packet.wlan.ta
+                if source_address == "ff:ff:ff:ff:ff:ff" or destination_address == "ff:ff:ff:ff:ff:ff" or \
+                                    receiver_address == "ff:ff:ff:ff:ff:ff" or transmitter_address == "ff:ff:ff:ff:ff:ff" or \
+                                    is_multicast_mac(source_address) or is_multicast_mac(destination_address) or \
+                                    is_multicast_mac(receiver_address) or is_multicast_mac(transmitter_address):
+                                        continue
+                if wlan_type == "2":
+                    source_address_qos= packet.wlan.sa
+                    destination_address_qos = packet.wlan.da
+                    # receiver_address_qos = packet.wlan.ra
+                    # transmitter_address_qos = packet.wlan.ta
+                    ls_qos.append([source_address_qos,destination_address_qos])
+                     
                 bss_id = wlan_layer.bssid
                 bssids.append(bss_id)
-                ls.append([source_address, receiver_address, transmitter_address, destination_address])
-    capture.close()
-    return ls
+                # ls.append([source_address, receiver_address, transmitter_address, destination_address])
+                unique_list_of_lists = []
+                seen_sublists = set()
 
-# Function to create a graph from the extracted addresses
+                for sublist in ls_qos:
+                    # Convert the sublist to a tuple to make it hashable
+                    sublist_tuple = tuple(sublist)
+                    
+                    if sublist_tuple not in seen_sublists:
+                        seen_sublists.add(sublist_tuple)
+                        unique_list_of_lists.append(sublist)
+                
+    capture.close()
+    return (unique_list_of_lists)# Function to create a graph from the extracted addresses
 def create_graph(edges):
     G = nx.DiGraph()  # Use DiGraph to represent directed edges (transmitter to receiver)
 
     for edge in edges:
-        node1, node2 = edge[0], edge[3]  # transmitter_address, receiver_address
+        node1, node2 = edge[0], edge[1]  # transmitter_address, receiver_address
         G.add_edge(node1, node2)
     return G
 
@@ -65,7 +86,7 @@ def allocate_bssid(add, bssids,components):
         dst = components[i][1]
         for j in range(len(add)):
             src2 = add[j][0] 
-            dst2 = add[j][3]
+            dst2 = add[j][1]
             # print(src, dst, src2, dst2)
             if src  == src2 and dst == dst2:
                 bssid.add(bssids[j])
