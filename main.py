@@ -55,9 +55,9 @@ def signup(request: SignupRequest):
     except Exception as e:
         raise HTTPException(status_code=400, detail="Signup failed")
 
-def is_multicast_mac(mac_address):
-    # Check if the MAC address is in the multicast range (01:00:5e:XX:XX or 33:33:XX:XX)
-    return mac_address.startswith("01:00:5e") or mac_address.startswith("33:33:")
+# def is_multicast_mac(mac_address):
+#     # Check if the MAC address is in the multicast range (01:00:5e:XX:XX or 33:33:XX:XX)
+#     return mac_address.startswith("01:00:5e") or mac_address.startswith("33:33:")
 def authenticate_user(username: str, password: str):
     try:
         response=auth.sign_in_with_email_and_password(username,password)
@@ -86,13 +86,17 @@ async def get_userid(token : str= Depends(oauth2_scheme)):
         return {"userid": email} 
     except Exception as e:
         raise HTTPException(status_code=400,detail=str(e))
-
+def is_multicast_mac(mac_address):
+    # Check if the MAC address is in the multicast range (01:00:5e:XX:XX or 33:33:XX:XX)
+    return mac_address.startswith("01:00:5e") or mac_address.startswith("33:33:") or mac_address.startswith("00:")
 def extract_addresses(pcapng_file):
     capture = pyshark.FileCapture(pcapng_file)
     ls = list()
     ls_qos=list()
     qos_set = set()
     idx = 0
+    seen_sublists = set()
+
     for packet in capture:
         idx+=1
         if 'wlan' in packet:
@@ -114,24 +118,17 @@ def extract_addresses(pcapng_file):
                     destination_address_qos = packet.wlan.da
                     # receiver_address_qos = packet.wlan.ra
                     # transmitter_address_qos = packet.wlan.ta
-                    ls_qos.append([source_address_qos,destination_address_qos])
+                    sublist_tuple = tuple([source_address_qos,destination_address_qos])
+                    if sublist_tuple not in seen_sublists:
+                        seen_sublists.add(sublist_tuple)
+                        ls_qos.append([source_address_qos,destination_address_qos])
                      
                 bss_id = wlan_layer.bssid
                 bssids.append(bss_id)
                 # ls.append([source_address, receiver_address, transmitter_address, destination_address])
-                unique_list_of_lists = []
-                seen_sublists = set()
-
-                for sublist in ls_qos:
-                    # Convert the sublist to a tuple to make it hashable
-                    sublist_tuple = tuple(sublist)
-                    
-                    if sublist_tuple not in seen_sublists:
-                        seen_sublists.add(sublist_tuple)
-                        unique_list_of_lists.append(sublist)
                 
     capture.close()
-    return (unique_list_of_lists)
+    return (ls_qos)
 async def async_extract_addresses(pcapng_file):
     loop = asyncio.get_event_loop()
     addresses = await loop.run_in_executor(None, extract_addresses, pcapng_file)
@@ -246,7 +243,7 @@ async def upload_and_analyze(file: UploadFile = File(...)):
 def execute_script(duration: int):
     script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fullfinal/first.sh")
     try:
-        subprocess.Popen(["gnome-terminal", "--", "bash", "-c", f"{script_path} {duration}"])
+        subprocess.Popen(["gnome-terminal", "--", "bash", "-c", f"{script_path} {duration}",'bash'])
     except subprocess.CalledProcessError:
         raise HTTPException(status_code=500, detail="Error executing the script")
 

