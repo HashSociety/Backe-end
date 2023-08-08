@@ -59,6 +59,14 @@ def create_graph(edges):
         G.add_edge(node1, node2)
     return G
 
+def create_graph_components(edges):
+    G = nx.DiGraph()  # Use DiGraph to represent directed edges (transmitter to receiver)
+
+    for edge in edges[:-1]:
+        node1, node2 = edge[0], edge[1]  # transmitter_address, receiver_address
+        G.add_edge(node1, node2)
+    return G
+
 # Function to count the number of disconnected graphs
 def count_disconnected_graphs(G):
     return len(list(nx.weakly_connected_components(G)))
@@ -99,6 +107,23 @@ def allocate_bssid(add, bssids,components):
 def show_graph(G):
     nx.draw(G, with_labels=True, node_color='lightblue', edge_color='gray')
     plt.show()
+
+
+
+
+
+def calculate_diameter(G):
+    return nx.diameter(G.to_undirected())
+
+# Function to calculate the density of a graph
+def calculate_density(G):
+    num_nodes = G.number_of_nodes()
+    num_edges = G.number_of_edges()
+    if num_nodes <= 1:
+        return 0.0
+    max_possible_edges = num_nodes * (num_nodes - 1)
+    density = num_edges / max_possible_edges
+    return density
 
 # Function to calculate indegree and outdegree for each MAC address
 def indegree_outdegree_info(G):

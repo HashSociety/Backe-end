@@ -142,12 +142,28 @@ async def upload_pcap(pcapng_file: UploadFile = UploadFile(...)):
         tmp.write(pcapng_file.file.read())
 
     addresses = await async_extract_addresses(pcapng_file_path)
-    graph=create_graph(addresses)
+    graph = create_graph(addresses)
 
-    components=make_components(graph,addresses)
-    no_of_disconnected_graphs=count_disconnected_graphs(graph)
+    components = make_components(graph, addresses)
+    no_of_disconnected_graphs = count_disconnected_graphs(graph)
+    component_info = []
+
+    num_components = len(components)
+    
+    for component_number, component_edges in list(components.items()):
+        print(component_edges)
+        component_graph = create_graph_components(component_edges)
+        diameter = calculate_diameter(component_graph)
+        density = calculate_density(component_graph)
+        component_info.append({
+            "component_number": component_number,
+            "component_edges": component_edges,
+            "diameter": diameter,
+            "density": density
+        })
     # access_point=find_mac_with_highest_degree(graph)
-    return {"addresses": addresses, "compenents":components,"no_of_disconnected_graphs":no_of_disconnected_graphs}
+    return {"addresses": addresses, "compenents": component_info, "no_of_disconnected_graphs": no_of_disconnected_graphs}
+
 
 def load_first_section_of_csv(content):
     # Find the index of the blank row that separates the two sections of headers
