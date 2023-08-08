@@ -123,8 +123,8 @@ def extract_addresses(pcapng_file):
                         seen_sublists.add(sublist_tuple)
                         ls_qos.append([source_address_qos,destination_address_qos])
                      
-                bss_id = wlan_layer.bssid
-                bssids.append(bss_id)
+                        bss_id = wlan_layer.bssid
+                        bssids.append(bss_id)
                 # ls.append([source_address, receiver_address, transmitter_address, destination_address])
                 
     capture.close()
