@@ -147,7 +147,30 @@ def is_mesh_topology(graph, required_degree_percent):
             return False
     return True
 
+def mac_set(data):
+    mac_addresses = set()
 
+    for item in data:
+        if isinstance(item, tuple):
+            for mac in item:
+                mac_addresses.add(mac)
+        elif isinstance(item, list):
+            for inner_item in item:
+                mac_addresses.add(inner_item)
+
+    return mac_addresses
+
+
+import requests
+
+def fetch_mac_vendor(mac_address):
+    api_url = f"https://api.macvendors.com/{mac_address}"
+    response = requests.get(api_url)
+
+    if response.status_code == 200:
+        return response.text.strip()
+    else:
+        return None
 
 
 

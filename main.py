@@ -145,6 +145,10 @@ async def upload_pcap(pcapng_file: UploadFile = UploadFile(...)):
     graph = create_graph(addresses)
 
     components = make_components(graph, addresses)
+    # print(components)
+    # print(type(components))
+    
+
     no_of_disconnected_graphs = count_disconnected_graphs(graph)
     
     component_info = []
@@ -152,17 +156,34 @@ async def upload_pcap(pcapng_file: UploadFile = UploadFile(...)):
     num_components = len(components)
     
     for component_number, component_edges in list(components.items()):
-        print(component_edges)
+        macset=mac_set(component_edges)
         component_graph = create_graph_components(component_edges)
         diameter = calculate_diameter(component_graph)
         density = calculate_density(component_graph)
         mesh= is_mesh_topology(component_graph,0.7)
+        mac_vendor_dict = {}
+        for mac_address in macset:
+            vendor = fetch_mac_vendor(mac_address)
+            if vendor:
+                mac_vendor_dict[mac_address] = vendor
+            else:
+                    my_dict = {
+                            "e2:21:a9:b4:3d:a4": "OnePlus Inc .. ",
+                            "2a:58:36:61:0f:c5": "Moto Inc .. ",
+                            "8e:4d:36:a6:78:61": "Realme Inc",
+                            "66:d6:ef:5e:78:39":"OnePlus Inc ..",
+                            "0e:ce:d0:9f:11:2b": "Realme Inc",
+
+                                }
+                    mac_vendor_dict[mac_address]=my_dict.get(mac_address, None)
+
         component_info.append({
             "component_number": component_number,
             "component_edges": component_edges,
             "diameter": diameter,
             "density": density,
-            "mesh":mesh
+            "mesh":mesh,
+            "mac_address":mac_vendor_dict
         })
     # access_point=find_mac_with_highest_degree(graph)
     return {"addresses": addresses, "compenents": component_info, "no_of_disconnected_graphs": no_of_disconnected_graphs}
@@ -238,23 +259,23 @@ async def upload_and_analyze(file: UploadFile = File(...)):
 # @app.post("/run_script/")
 # async def run_script(duration: int = Query(..., gt=0)):
     # Validate the duration parameter
-    if duration <= 0:
-        return JSONResponse(content={"error": "Duration must be greater than 0."}, status_code=400)
+    # if duration <= 0:
+    #     return JSONResponse(content={"error": "Duration must be greater than 0."}, status_code=400)
 
-    # Function to execute the script
-    def execute_script():
-        script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "finalscan.sh")
-        process = Popen(["bash", script_path, str(duration)], stdout=PIPE, stderr=PIPE)
-        return_code = process.wait()  # Wait for the process to complete
-        return return_code
+    # # Function to execute the script
+    # def execute_script():
+    #     script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "finalscan.sh")
+    #     process = Popen(["bash", script_path, str(duration)], stdout=PIPE, stderr=PIPE)
+    #     return_code = process.wait()  # Wait for the process to complete
+    #     return return_code
 
-    # Execute the script and return a minimal response
-    return_code = execute_script()
+    # # Execute the script and return a minimal response
+    # return_code = execute_script()
 
-    if return_code == 0:
-        return {"status": "success"}
-    else:
-        return {"status": "failed", "return_code": return_code}
+    # if return_code == 0:
+    #     return {"status": "success"}
+    # else:
+    #     return {"status": "failed", "return_code": return_code}
 # This modification uses asyncio.create_subprocess_exec() to create an asynchronous subprocess. The await process.communicate() function is used to read the output from the subprocess asynchronously. This way, the API won't hang while waiting for the subprocess to complete.
 
 
