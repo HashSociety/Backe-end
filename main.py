@@ -18,6 +18,10 @@ from subprocess import Popen, PIPE
 import os
 import subprocess
 from fastapi import FastAPI, Query, BackgroundTasks
+import aiomysql
+from aiomysql import Pool
+import uuid
+import shutil
 # from secondsec import *
 app = FastAPI()
 
@@ -28,6 +32,32 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+async def create_connection_pool():
+    pool = await aiomysql.create_pool(
+        host='127.0.0.1',
+        user='akshat',
+        password='1234',
+        db='meshhawk',
+        autocommit=True
+    )
+    return pool
+
+async def get_connection():
+    return await app.state.pool.acquire()
+
+async def release_connection(conn):
+    await app.state.pool.release(conn)
+
+
+@app.on_event("startup")
+async def startup_event():
+    app.state.pool = await create_connection_pool()
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    await app.state.pool.close()
 
 @app.get("/")
 async def index(request: Request):
@@ -366,3 +396,73 @@ async def generic_exception_handler(request, exc):
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={"message": "Internal Server Error"},
     )
+
+
+
+@app.post("/update_database",tags=['Database'])
+async def update_database(userid: str):
+    submission_id = str(uuid.uuid4())
+
+    # Create directories if they don't exist
+    records_dir = os.path.join("records", userid, submission_id)
+    os.makedirs(records_dir, exist_ok=True)
+
+    # Define source and destination paths for CSV file
+    source_file_csv = os.path.join("fullfinal/output", "capture.csv")
+    destination_file_csv = os.path.join(records_dir, "capture.csv")
+
+    # Copy CSV file
+    shutil.copy(source_file_csv, destination_file_csv)
+
+    # Define source and destination paths for PCAP file
+    source_file_pcap = os.path.join("fullfinal/output", "capture")
+    destination_file_pcap = os.path.join(records_dir, "capture")
+
+    # Copy PCAP file
+    shutil.copy(source_file_pcap, destination_file_pcap)
+
+    # Define report link as None
+    report_link = None
+
+    conn = await get_connection()
+
+    # Insert the new record into the submissions table
+    query = """
+        INSERT INTO submissions (SUB_ID, USER_ID, PCAP_LINK, CSV_LINK, REPORT_LINK)
+        VALUES (%s, %s, %s, %s, %s)
+    """
+
+    async with conn.cursor() as cursor:
+        await cursor.execute(query, (submission_id, userid, destination_file_pcap, destination_file_csv, report_link))
+        await conn.commit()
+
+    await release_connection(conn)
+
+    return {"status": "success", "message": "Files copied and database updated."}
+
+@app.get("/get_all_submissions",tags=['Database'])
+async def get_all_submissions(userid: str = Query(...)):
+    conn = await get_connection()
+
+    # Retrieve all data from the submissions table
+    query = f"SELECT * FROM submissions where user_id=%s"
+
+    async with conn.cursor() as cursor:
+        await cursor.execute(query, (userid,))
+        result = await cursor.fetchall()
+
+    await release_connection(conn)
+
+    # Convert the result to a list of dictionaries for JSON response
+    submissions = []
+    for row in result:
+        submission = {
+            "SUB_ID": row[0],
+            "USER_ID": row[1],
+            "PCAP_LINK": row[2],
+            "CSV_LINK": row[3],
+            "REPORT_LINK": row[4]
+        }
+        submissions.append(submission)
+
+    return JSONResponse(content=submissions)
