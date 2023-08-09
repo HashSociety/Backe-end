@@ -146,6 +146,7 @@ async def upload_pcap(pcapng_file: UploadFile = UploadFile(...)):
 
     components = make_components(graph, addresses)
     no_of_disconnected_graphs = count_disconnected_graphs(graph)
+    
     component_info = []
 
     num_components = len(components)
@@ -155,11 +156,13 @@ async def upload_pcap(pcapng_file: UploadFile = UploadFile(...)):
         component_graph = create_graph_components(component_edges)
         diameter = calculate_diameter(component_graph)
         density = calculate_density(component_graph)
+        mesh= is_mesh_topology(component_graph,0.7)
         component_info.append({
             "component_number": component_number,
             "component_edges": component_edges,
             "diameter": diameter,
-            "density": density
+            "density": density,
+            "mesh":mesh
         })
     # access_point=find_mac_with_highest_degree(graph)
     return {"addresses": addresses, "compenents": component_info, "no_of_disconnected_graphs": no_of_disconnected_graphs}

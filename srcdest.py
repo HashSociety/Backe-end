@@ -137,6 +137,20 @@ def find_mac_with_highest_degree(G):
     mac_with_highest_degree = max(degrees, key=degrees.get)
     return mac_with_highest_degree
 
+
+def is_mesh_topology(graph, required_degree_percent):
+    nodes = list(graph.nodes)
+    required_degree = len(nodes) * required_degree_percent
+    
+    for node in nodes:
+        if graph.degree(node) < required_degree:
+            return False
+    return True
+
+
+
+
+
 # # Usage
 bssids = list()
 # pcapng_file = "./capture.pcapng"
