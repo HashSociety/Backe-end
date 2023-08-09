@@ -262,7 +262,7 @@ async def upload_and_analyze(file: UploadFile = File(...)):
 def execute_script(duration: int):
     script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fullfinal/first.sh")
     try:
-        subprocess.Popen(["gnome-terminal", "--", "bash", "-c", f"{script_path} {duration}",'bash'])
+        subprocess.Popen(["gnome-terminal", "--", "bash", "-c", f"{script_path} {duration}; exec bash"])
     except subprocess.CalledProcessError:
         raise HTTPException(status_code=500, detail="Error executing the script")
 
